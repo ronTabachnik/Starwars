@@ -9,26 +9,35 @@ import SwiftUI
 
 struct MainScreen: View {
     @ObservedObject var dataManager = DataManager()
-    @State private var favorite: Character?
+//    @State private var favorite: Character?
+    @State private var searchText: String = ""
 
     var body: some View {
         VStack {
-            if !dataManager.characters.isEmpty {
+            SearchBar(onSearch: {
+                dataManager.performRequest(searchText: searchText)
+            }, text: $searchText)
+            .environmentObject(dataManager)
+            Spacer()
+            if !dataManager.characters.isEmpty || !dataManager.searchedResult.isEmpty {
                 ScrollView {
                     LazyVStack {
-                        ForEach(dataManager.characters, id: \.id) { character in
+                        let charactersToDisplay = dataManager.searchedResult.isEmpty || searchText.isEmpty ? dataManager.characters : dataManager.searchedResult
+
+                        ForEach(charactersToDisplay, id: \.id) { character in
                             CharacterCellView(
                                 character: character,
                                 isFavorite: Binding(
-                                    get: { self.favorite == character },
+                                    get: { dataManager.favorite == character.name },
                                     set: { isFavorite in
-                                        self.favorite = isFavorite ? character : nil
+                                        dataManager.favorite = isFavorite ? character.name : nil
                                     }
                                 )
                             )
                             .onAppear {
-                                if character.id == dataManager.characters.last?.id && dataManager.hasNextPage != nil && !dataManager.loading {
+                                if character.id == charactersToDisplay.last?.id && dataManager.hasNextPage != nil && !dataManager.loading {
                                     dataManager.performRequest(urlString: dataManager.hasNextPage ?? "")
+                                    print(dataManager.hasNextPage ?? "")
                                 }
                             }
                         }
@@ -40,6 +49,12 @@ struct MainScreen: View {
                         ProgressView("Loading...")
                     }
                 }
+            } else {
+                if dataManager.loading {
+                    ProgressView("Loading...")
+                } else {
+                    Text("No data to show..")
+                }
             }
         }
         .padding()
@@ -48,6 +63,7 @@ struct MainScreen: View {
         }
     }
 }
+
 
 
 #Preview {

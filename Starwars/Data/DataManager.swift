@@ -9,17 +9,18 @@ import Foundation
 
 class DataManager: ObservableObject {
     @Published var characters: [Character] = []
+    @Published var searchedResult: [Character] = []
     @Published var loading: Bool = false
     @Published var isError: Bool = false
     @Published var hasNextPage: String? = nil
-    
+    @Published var favorite: String?
+
     private let baseURLString = "https://swapi.dev/api/people/"
     
-    func performRequest(urlString: String = "") {
+    func performRequest(urlString: String = "",searchText: String = "") {
         loading = true
         isError = false
-        print(urlString == "" ? "\(baseURLString)" : urlString)
-        guard let url = URL(string: urlString == "" ? "\(baseURLString)?page=1" : urlString) else {
+        guard let url = URL(string: searchText.isEmpty ? urlString == "" ? "\(baseURLString)" : urlString : "\(baseURLString)?search=\(searchText)") else {
             requestFailure()
             return
         }
@@ -42,8 +43,11 @@ class DataManager: ObservableObject {
                             self.isError = false
                             self.hasNextPage = nil
                             self.loading = false
-                            // Convert height strings to integers and sort characters by height
-                            self.characters.sort(by: { (Int($0.height) ?? 0) < (Int($1.height) ?? 0) })
+                            if searchText.isEmpty {
+                                self.characters.sort(by: { (Int($0.height) ?? 0) < (Int($1.height) ?? 0) })
+                            } else {
+                                self.searchedResult = response.results
+                            }
                             return
                         }
                         
@@ -55,7 +59,12 @@ class DataManager: ObservableObject {
                         }
                         self.loading = false
                         self.hasNextPage = nextPage
-                        self.characters += response.results
+                        if searchText.isEmpty {
+                            self.characters += response.results
+                        } else {
+                            self.searchedResult = response.results
+                        }
+                        
                         self.isError = false
                     }
                 } catch {
